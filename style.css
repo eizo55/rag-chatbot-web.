@@ -1,0 +1,272 @@
+:root {
+  --paper: #edf0f3;
+  --surface: #fafbfc;
+  --ink: #15233b;
+  --muted: #56647a;
+  --line: #c6cfda;
+  --marker: #ffe066;
+  --link: #2a56a3;
+  --error: #9b1c1c;
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+:focus-visible { outline: 3px solid var(--link); outline-offset: 2px; }
+
+.masthead, main, footer {
+  width: min(100% - 2rem, 70rem);
+  margin-inline: auto;
+}
+
+/* ---------- Kopf ---------- */
+.masthead { padding: 3.5rem 0 1.5rem; }
+
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+
+.lede {
+  max-width: 38rem;
+  margin: 1rem 0 0;
+  font-size: 1.12rem;
+  color: var(--muted);
+}
+
+/* ---------- Frage ---------- */
+.ask { display: flex; gap: 0.6rem; margin-top: 1rem; }
+
+.ask input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  font-size: 1.15rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+}
+.ask input::placeholder { color: #7a879a; }
+
+button, .file-btn {
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.ask button {
+  padding: 0 1.8rem;
+  color: var(--surface);
+  background: var(--ink);
+  border: 2px solid var(--ink);
+}
+.ask button:hover { background: #24375a; }
+.ask button:disabled { opacity: 0.6; cursor: progress; }
+
+.examples {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  margin: 0.9rem 0 0; padding: 0; list-style: none;
+}
+.examples button {
+  padding: 0.35rem 0.8rem;
+  font-weight: 500;
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink);
+}
+.examples button:hover { background: var(--surface); }
+
+/* ---------- Arbeitsfläche ---------- */
+.work {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 2.5rem;
+  margin-top: 2.5rem;
+  align-items: start;
+}
+
+h2 {
+  margin: 0 0 1rem;
+  font-family: var(--sans);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.answer {
+  font-family: var(--serif);
+  font-size: 1.12rem;
+  line-height: 1.65;
+  max-width: 34rem;
+  white-space: pre-line;
+}
+.answer p { margin: 0; }
+.answer .empty, .answer .note { font-family: var(--sans); font-size: 0.98rem; color: var(--muted); white-space: normal; }
+.answer .error { font-family: var(--sans); font-size: 0.98rem; color: var(--error); white-space: normal; }
+.answer .error strong { display: block; margin-bottom: 0.2rem; }
+
+a.cite {
+  font-family: var(--sans);
+  font-size: 0.74em;
+  font-weight: 700;
+  vertical-align: super;
+  line-height: 0;
+  padding: 0 0.12em;
+  color: var(--link);
+  text-decoration: none;
+}
+a.cite:hover { text-decoration: underline; }
+
+/* ---------- Akte: gefundene Abschnitte ---------- */
+.sources { margin: 2.1rem 0 0; padding: 0; list-style: none; display: grid; gap: 2.2rem; }
+.sources .empty { color: var(--muted); font-size: 0.98rem; }
+
+.slip {
+  position: relative;
+  padding: 1.1rem 1.2rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0 2px 2px 2px;
+  scroll-margin-top: 1.5rem;
+}
+.slip:target { border-color: var(--ink); box-shadow: inset 4px 0 0 var(--ink); }
+
+.slip .tab {
+  position: absolute;
+  top: -1.55rem; left: -1px;
+  padding: 0.18rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--surface);
+  background: var(--ink);
+  border-radius: 2px 2px 0 0;
+}
+
+.slip .text {
+  margin: 0;
+  max-width: 40rem;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+mark {
+  color: inherit;
+  background: linear-gradient(transparent 14%, var(--marker) 14%, var(--marker) 90%, transparent 90%);
+  padding: 0 0.12em;
+  margin: 0 -0.12em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.meter { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.9rem; font-size: 0.82rem; color: var(--muted); }
+.meter .bar { flex: 1; height: 3px; background: var(--line); }
+.meter .bar i { display: block; height: 100%; background: var(--ink); }
+
+/* ---------- Einstellungen und Dokumente ---------- */
+details {
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.9rem;
+}
+details + details { margin-top: 0.9rem; }
+
+summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.2rem 0;
+}
+summary span { font-weight: 400; color: var(--muted); margin-left: 0.4rem; }
+
+.settings-body { padding: 0.9rem 0 0.4rem; max-width: 44rem; }
+fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 0.5rem; }
+.radio { display: block; cursor: pointer; }
+.radio span { color: var(--muted); margin-left: 0.3rem; font-size: 0.92rem; }
+.radio input { margin-right: 0.4rem; accent-color: var(--ink); }
+
+.field-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; }
+.field-row label { display: grid; gap: 0.25rem; font-size: 0.9rem; font-weight: 500; flex: 1 1 14rem; }
+.field-row input {
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+}
+
+.hint { margin: 0.8rem 0 0; font-size: 0.9rem; color: var(--muted); }
+code { font-size: 0.86em; padding: 0.05rem 0.3rem; background: #dfe5ec; border-radius: 2px; word-break: break-word; }
+
+.docs-list { margin: 0; padding: 0; list-style: none; }
+.docs-list li {
+  display: flex; align-items: baseline; gap: 0.8rem;
+  padding: 0.45rem 0; border-bottom: 1px solid var(--line);
+}
+.docs-list .name { font-weight: 500; flex: 1; overflow-wrap: anywhere; }
+.docs-list .meta { color: var(--muted); font-size: 0.88rem; }
+.docs-list .empty { color: var(--muted); border: 0; }
+
+.docs-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1rem; }
+.file-btn, .quiet {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink);
+}
+.file-btn:hover, .quiet:hover { background: var(--surface); }
+.file-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file-btn:focus-within { outline: 3px solid var(--link); outline-offset: 2px; }
+.docs-list button {
+  padding: 0.1rem 0.5rem; font-size: 0.85rem; font-weight: 500;
+  color: var(--ink); background: transparent; border: 1px solid var(--line);
+}
+.docs-list button:hover { border-color: var(--ink); }
+
+/* ---------- Fuß ---------- */
+footer { margin-top: 3.5rem; padding: 1.5rem 0 3rem; border-top: 2px solid var(--ink); }
+.steps { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.5rem; max-width: 42rem; }
+.fine { margin: 1.5rem 0 0; font-size: 0.9rem; color: var(--muted); max-width: 42rem; }
+.fine a { color: var(--link); }
+
+/* ---------- Schmale Bildschirme ---------- */
+@media (max-width: 860px) {
+  .work { grid-template-columns: minmax(0, 1fr); gap: 2.2rem; }
+  .masthead { padding-top: 2rem; }
+}
+@media (max-width: 520px) {
+  .ask { flex-direction: column; }
+  .ask button { padding: 0.8rem 1.8rem; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ask button, .examples button { transition: background-color 0.12s; }
+}

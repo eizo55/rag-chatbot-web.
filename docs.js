@@ -1,0 +1,15 @@
+// Beispieltexte (Demo-Inhalte, keine Rechtsberatung)
+window.SAMPLE_DOCS = [
+  {
+    "name": "betriebskostenabrechnung.md",
+    "text": "# Betriebskostenabrechnung\n\nÜber die Betriebskosten, also etwa Heizung, Wasser, Müllabfuhr, Hausmeister und Gebäudeversicherung, rechnet der Vermieter einmal jährlich mit den Mietern ab. Der Abrechnungszeitraum beträgt in der Regel zwölf Monate.\n\nDie Abrechnung muss dem Mieter spätestens zwölf Monate nach dem Ende des Abrechnungszeitraums zugehen (§ 556 Abs. 3 BGB). Kommt sie später, kann der Vermieter Nachforderungen in der Regel nicht mehr geltend machen. Guthaben des Mieters bleiben dagegen bestehen.\n\nEine formal korrekte Abrechnung enthält die Gesamtkosten je Kostenart, den Verteilerschlüssel, den Anteil des Mieters und die geleisteten Vorauszahlungen. Der Mieter darf die Belege einsehen und hat nach Zugang der Abrechnung in der Regel zwölf Monate Zeit, Einwendungen zu erheben.\n\nZahlt der Mieter zu hohe Vorauszahlungen, ergibt sich ein Guthaben. Ist das Guthaben ausgeglichen oder besteht eine Nachzahlung, kann der Vermieter die Vorauszahlungen für die Zukunft angemessen anpassen."
+  },
+  {
+    "name": "hausverwaltung.txt",
+    "text": "Aufgaben einer Hausverwaltung\n\nEine Hausverwaltung übernimmt die kaufmännische, technische und rechtliche Betreuung von Immobilien. Zur kaufmännischen Verwaltung gehören Mietbuchhaltung, Mahnwesen, Wirtschaftsplan und Betriebskostenabrechnung. Die technische Verwaltung umfasst Instandhaltung, Reparaturbeauftragung, Wartungsverträge und die Begleitung von Modernisierungen.\n\nBei Wohnungseigentümergemeinschaften bereitet die Verwaltung die Eigentümerversammlung vor, setzt Beschlüsse um und führt die Beschluss-Sammlung. Sie verwaltet das Gemeinschaftseigentum und legt jährlich Rechnung.\n\nDigitale Workflows helfen, wiederkehrende Aufgaben zu automatisieren: Schadensmeldungen werden per App erfasst und an Handwerker weitergeleitet, Rechnungen laufen durch einen Freigabeprozess, und Mieter erhalten Dokumente über ein Portal. Eine saubere Datenbasis, etwa aktuelle Stammdaten zu Objekten, Verträgen und Zählern, ist dafür die Voraussetzung."
+  },
+  {
+    "name": "mietkaution.md",
+    "text": "# Mietkaution\n\nDie Mietkaution dient dem Vermieter als Sicherheit für mögliche Forderungen aus dem Mietverhältnis, etwa Mietrückstände oder Schäden an der Wohnung. Bei Wohnraum darf die Kaution höchstens das Dreifache der monatlichen Nettokaltmiete betragen (§ 551 BGB). Betriebskostenvorauszahlungen werden dabei nicht mitgerechnet.\n\nDer Mieter darf die Kaution in drei gleichen Monatsraten zahlen. Die erste Rate ist zu Beginn des Mietverhältnisses fällig, die weiteren Raten folgen mit den nächsten beiden Mietzahlungen.\n\nDer Vermieter muss die Kaution getrennt von seinem eigenen Vermögen anlegen, zum üblichen Zinssatz für Spareinlagen mit dreimonatiger Kündigungsfrist. Die Zinsen erhöhen die Kaution. Nach dem Ende des Mietverhältnisses hat der Vermieter eine angemessene Prüfungsfrist, um offene Forderungen zu klären, bevor er die Kaution zurückzahlt. Üblich sind einige Monate."
+  }
+];
