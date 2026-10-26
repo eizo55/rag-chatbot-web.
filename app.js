@@ -1,3 +1,7 @@
+/*
+ * UI and model backends. Retrieval itself lives in rag.js.
+ * All user-visible text is German; code and comments are English.
+ */
 (function () {
   "use strict";
 
@@ -8,6 +12,10 @@
     "Was macht eine Hausverwaltung?",
     "Darf die Kaution in Raten gezahlt werden?",
   ];
+  const DEFAULT_OLLAMA_URL = "http://localhost:11434";
+  const DEFAULT_OLLAMA_MODEL = "llama3.2";
+  const DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5";
+  const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
   const $ = (sel) => document.querySelector(sel);
   const el = (tag, props = {}, ...children) => {
@@ -18,13 +26,13 @@
 
   const state = { docs: [], bm25: null, requestId: 0 };
 
-  /* ---------- Einstellungen merken (ohne API-Schlüssel) ---------- */
+  /* ---------- Persisted preferences (never the API key) ---------- */
   const store = {
     get(key, fallback) { try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; } },
-    set(key, value) { try { localStorage.setItem(key, value); } catch { /* privater Modus */ } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage unavailable, e.g. private mode */ } },
   };
 
-  /* ---------- Dokumente und Index ---------- */
+  /* ---------- Documents and index ---------- */
   function loadSamples() {
     state.docs = window.SAMPLE_DOCS.map((d) => ({ name: d.name, text: d.text }));
     rebuild();
@@ -39,9 +47,9 @@
   function renderDocs(chunks) {
     const list = $("#docs-list");
     list.replaceChildren();
-    $("#docs-count").textContent = `(${state.docs.length}, ${chunks.length} Abschnitte)`;
+    $("#docs-count").textContent = `(${state.docs.length} Dateien, ${chunks.length} Abschnitte)`;
     if (state.docs.length === 0) {
-      list.append(el("li", { className: "empty" }, "Keine Dokumente geladen. Füge eigene Dateien hinzu oder setze die Beispiele zurück."));
+      list.append(el("li", { className: "empty" }, "Keine Dokumente geladen. Eigene Dateien hinzufügen oder die Beispiele zurücksetzen."));
       return;
     }
     for (const doc of state.docs) {
@@ -69,11 +77,11 @@
     rebuild();
   }
 
-  /* ---------- Frage stellen ---------- */
+  /* ---------- Asking ---------- */
   async function ask(question) {
     const q = question.trim();
     if (!q) return;
-    const myId = ++state.requestId;
+    const myId = ++state.requestId; // ignore responses that arrive after a newer question
     const hits = state.bm25.retrieve(q, TOP_K);
     renderSources(hits, q);
 
@@ -82,7 +90,7 @@
 
     const button = $("#ask button");
     button.disabled = true;
-    renderAnswerNote(mode === "ollama"
+    renderLoading(mode === "ollama"
       ? "Antwort wird erstellt. Beim ersten Mal lädt Ollama das Modell, das kann eine Minute dauern."
       : "Antwort wird erstellt.");
     try {
@@ -95,19 +103,26 @@
     }
   }
 
-  /* ---------- Sprachmodelle ---------- */
+  /* ---------- Language model backends ---------- */
   class UserFacingError extends Error {
     constructor(title, detail) { super(title); this.title = title; this.detail = detail; }
   }
 
-  async function callModel(mode, question, hits) {
+  function callModel(mode, question, hits) {
     const prompt = window.Rag.buildUserPrompt(question, hits);
-    return mode === "ollama" ? callOllama(prompt) : callClaude(prompt);
+    if (mode === "ollama") return callOllama(prompt);
+    if (mode === "openai") return callOpenAI(prompt);
+    return callClaude(prompt);
+  }
+
+  /** The origin Ollama has to allow: this page's origin, or "*" when opened from a file. */
+  function ollamaOrigin() {
+    return /^https?:\/\//.test(location.origin) ? location.origin : "*";
   }
 
   async function callOllama(prompt) {
-    const base = $("#ollama-url").value.trim().replace(/\/+$/, "") || "http://localhost:11434";
-    const model = $("#ollama-model").value.trim() || "llama3.2";
+    const base = ($("#ollama-url").value.trim() || DEFAULT_OLLAMA_URL).replace(/\/+$/, "");
+    const model = $("#ollama-model").value.trim() || DEFAULT_OLLAMA_MODEL;
     let res;
     try {
       res = await fetch(`${base}/api/chat`, {
@@ -119,15 +134,16 @@
         }),
       });
     } catch {
+      // A blocked cross-origin request and a stopped server look the same to the browser.
       throw new UserFacingError("Ollama ist nicht erreichbar.",
-        `Prüfe, ob Ollama unter ${base} läuft und ob diese Seite zugelassen ist (OLLAMA_ORIGINS, siehe Antwortmodus).`);
+        `Läuft Ollama unter ${base}? Falls ja, fehlt die Freigabe für diese Seite: Ollama mit OLLAMA_ORIGINS="${ollamaOrigin()}" starten (siehe „Einrichtung von Ollama“).`);
     }
     if (res.status === 404) {
-      throw new UserFacingError(`Ollama kennt das Modell „${model}“ nicht.`, `Lade es mit: ollama pull ${model}`);
+      throw new UserFacingError(`Ollama kennt das Modell „${model}“ nicht.`, `Das Modell laden mit: ollama pull ${model}`);
     }
     if (res.status === 403) {
       throw new UserFacingError("Ollama hat die Anfrage abgelehnt.",
-        "Diese Seite ist nicht in OLLAMA_ORIGINS eingetragen (siehe Antwortmodus).");
+        `Diese Seite ist nicht freigegeben. Ollama mit OLLAMA_ORIGINS="${ollamaOrigin()}" starten.`);
     }
     if (!res.ok) throw new UserFacingError(`Ollama-Fehler ${res.status}.`, await safeText(res));
     const data = await res.json();
@@ -136,8 +152,10 @@
 
   async function callClaude(prompt) {
     const key = $("#claude-key").value.trim();
-    const model = $("#claude-model").value.trim() || "claude-sonnet-5-5";
-    if (!key) throw new UserFacingError("Es fehlt der API-Schlüssel.", "Trage ihn unter Antwortmodus ein oder wechsle auf Nur Suche.");
+    const model = $("#claude-model").value.trim() || DEFAULT_CLAUDE_MODEL;
+    if (!key) {
+      throw new UserFacingError("Es fehlt der API-Schlüssel.", "Schlüssel im Feld „API-Schlüssel“ eintragen oder auf „Nur Suche“ wechseln.");
+    }
     let res;
     try {
       res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -146,6 +164,7 @@
           "content-type": "application/json",
           "x-api-key": key,
           "anthropic-version": "2023-06-01",
+          // Required by the API for calls made directly from a browser.
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
@@ -154,16 +173,17 @@
         }),
       });
     } catch {
-      throw new UserFacingError("Verbindung zu api.anthropic.com fehlgeschlagen.", "Prüfe deine Internetverbindung und Browser-Erweiterungen, die Anfragen blockieren.");
+      throw new UserFacingError("Verbindung zu api.anthropic.com fehlgeschlagen.",
+        "Internetverbindung prüfen und Browser-Erweiterungen deaktivieren, die Anfragen blockieren.");
     }
     if (!res.ok) {
       let message = "";
-      try { message = (await res.json())?.error?.message ?? ""; } catch { /* kein JSON */ }
+      try { message = (await res.json())?.error?.message ?? ""; } catch { /* body is not JSON */ }
       const hints = {
-        401: "Der API-Schlüssel ist ungültig. Erstelle in der Anthropic Console einen neuen.",
-        400: "Meist fehlt Guthaben oder die Anfrage ist ungültig.",
-        404: `Das Modell „${model}“ ist für dein Konto nicht verfügbar. Trage unter Antwortmodus ein anderes ein.`,
-        429: "Zu viele Anfragen. Warte kurz und versuche es erneut.",
+        401: "Der API-Schlüssel ist ungültig.",
+        400: "Meist fehlt Guthaben, oder die Anfrage ist ungültig.",
+        404: `Das Modell „${model}“ ist für dieses Konto nicht verfügbar. Im Feld „Modell“ ein anderes eintragen.`,
+        429: "Zu viele Anfragen. Kurz warten und erneut versuchen.",
       };
       throw new UserFacingError(`Claude-API-Fehler ${res.status}.`, [hints[res.status], message].filter(Boolean).join(" "));
     }
@@ -171,29 +191,87 @@
     return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
   }
 
+  /**
+   * OpenAI via the Responses API (/v1/responses). It is used instead of Chat Completions because
+   * the latter has been unreliable for direct browser calls (missing CORS headers).
+   */
+  async function callOpenAI(prompt) {
+    const key = $("#openai-key").value.trim();
+    const model = $("#openai-model").value.trim() || DEFAULT_OPENAI_MODEL;
+    if (!key) {
+      throw new UserFacingError("Es fehlt der API-Schlüssel.", "Schlüssel im Feld „API-Schlüssel“ eintragen oder auf „Nur Suche“ wechseln.");
+    }
+    let res;
+    try {
+      res = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          instructions: window.Rag.SYSTEM_PROMPT,
+          input: [{ role: "user", content: prompt }],
+          max_output_tokens: 1024,
+          store: false, // do not keep the conversation on OpenAI's side
+        }),
+      });
+    } catch {
+      throw new UserFacingError("Verbindung zu api.openai.com fehlgeschlagen.",
+        "Internetverbindung prüfen. Auch Browser-Erweiterungen, Firmennetzwerke oder eine Browser-Sperre des Anbieters können die Anfrage blockieren.");
+    }
+    if (!res.ok) {
+      let message = "";
+      try { message = (await res.json())?.error?.message ?? ""; } catch { /* body is not JSON */ }
+      const hints = {
+        401: "Der API-Schlüssel ist ungültig.",
+        404: `Das Modell „${model}“ ist für dieses Konto nicht verfügbar. Im Feld „Modell“ ein anderes eintragen.`,
+        429: "Kontingent erschöpft oder zu viele Anfragen. Guthaben und Limits in der OpenAI-Plattform prüfen.",
+      };
+      throw new UserFacingError(`OpenAI-API-Fehler ${res.status}.`, [hints[res.status], message].filter(Boolean).join(" "));
+    }
+    const data = await res.json();
+    // The raw response lists output items; the text sits in "output_text" parts of "message" items.
+    const parts = (data.output || [])
+      .filter((item) => item.type === "message")
+      .flatMap((item) => item.content || [])
+      .filter((c) => c.type === "output_text")
+      .map((c) => c.text);
+    return parts.join("");
+  }
+
   async function safeText(res) { try { return await res.text(); } catch { return ""; } }
 
-  /* ---------- Darstellung ---------- */
+  /* ---------- Rendering ---------- */
   function currentMode() { return document.querySelector('input[name="mode"]:checked').value; }
 
-  function renderAnswerNone(hits) {
-    const box = $("#answer");
-    box.replaceChildren(el("p", { className: "note" }, hits.length === 0
-      ? "Dazu wurde nichts gefunden. Formuliere die Frage mit anderen Wörtern."
-      : "Im Modus Nur Suche wird keine Antwort formuliert. Die passendsten Treffer stehen bei den gefundenen Abschnitten. Unter Antwortmodus kannst du ein Sprachmodell zuschalten."));
+  function modeLabel() {
+    const mode = currentMode();
+    if (mode === "ollama") return `Ollama (${$("#ollama-model").value.trim() || DEFAULT_OLLAMA_MODEL})`;
+    if (mode === "claude") return `Claude (${$("#claude-model").value.trim() || DEFAULT_CLAUDE_MODEL})`;
+    if (mode === "openai") return `OpenAI (${$("#openai-model").value.trim() || DEFAULT_OPENAI_MODEL})`;
+    return "Nur Suche";
   }
 
-  function renderAnswerNote(text) { $("#answer").replaceChildren(el("p", { className: "note" }, text)); }
+  function renderAnswerNone(hits) {
+    $("#answer").replaceChildren(el("p", { className: "note" }, hits.length === 0
+      ? "Dazu wurde nichts gefunden. Die Frage mit anderen Wörtern formulieren."
+      : "Im Modus „Nur Suche“ wird keine Antwort formuliert. Die passendsten Treffer stehen unter „Gefundene Abschnitte“. Mit Ollama, Claude oder OpenAI formuliert ein Sprachmodell daraus eine Antwort."));
+  }
+
+  function renderLoading(text) {
+    const skeleton = el("div", { className: "skeleton" }, el("i"), el("i"), el("i"));
+    skeleton.setAttribute("aria-hidden", "true");
+    $("#answer").replaceChildren(skeleton, el("p", { className: "note" }, text));
+  }
 
   function renderAnswerError(err) {
-    const title = err instanceof UserFacingError ? err.title : "Etwas ist schiefgelaufen.";
-    const detail = err instanceof UserFacingError ? err.detail : String(err.message || err);
-    $("#answer").replaceChildren(el("div", { className: "error" }, el("strong", {}, title), detail));
+    const known = err instanceof UserFacingError;
+    $("#answer").replaceChildren(el("div", { className: "error" },
+      el("strong", {}, known ? err.title : "Etwas ist schiefgelaufen."),
+      known ? err.detail : String(err.message || err)));
   }
 
-  /** Writes the answer as text and turns [n] markers into links to the matching passage. */
+  /** Shows the answer as text and turns [n] markers into links to the matching passage. */
   function renderAnswer(text, hitCount) {
-    const box = $("#answer");
     const p = el("p");
     for (const part of text.trim().split(/(\[\d+\])/)) {
       const m = part.match(/^\[(\d+)\]$/);
@@ -205,12 +283,15 @@
         p.append(part);
       }
     }
-    box.replaceChildren(p);
+    $("#answer").replaceChildren(p);
   }
 
   function renderSources(hits, query) {
     const list = $("#sources");
+    const count = $("#hit-count");
     list.replaceChildren();
+    count.hidden = hits.length === 0;
+    count.textContent = `${hits.length} Treffer`;
     if (hits.length === 0) {
       list.append(el("li", { className: "empty" }, "Keine passenden Abschnitte gefunden."));
       return;
@@ -218,22 +299,35 @@
     const top = hits[0].score;
     hits.forEach((h, i) => {
       const n = i + 1;
-      const display = h.chunk.text.replace(/^#+\s*/gm, "");
-      const p = el("p", { className: "text" });
+      const display = h.chunk.text.replace(/^#+\s*/gm, ""); // drop markdown heading marks for display
+      const body = el("p", { className: "text" });
       for (const part of window.Rag.highlightParts(display, query)) {
-        p.append(part.hit ? el("mark", {}, part.text) : part.text);
+        body.append(part.hit ? el("mark", {}, part.text) : part.text);
       }
-      const bar = el("span", { className: "bar" }, el("i"));
-      bar.firstChild.style.width = `${Math.max(4, Math.round((h.score / top) * 100))}%`;
-      const meter = el("div", { className: "meter" }, bar, `Relevanz ${h.score.toFixed(2)}`);
-      const li = el("li", { className: "slip", id: `slip-${n}` },
-        el("span", { className: "tab", textContent: `[${n}] ${h.chunk.source}, Abschnitt ${h.chunk.index + 1}` }),
-        p, meter);
-      list.append(li);
+      const fill = el("i");
+      fill.style.width = `${Math.max(4, Math.round((h.score / top) * 100))}%`;
+      const meter = el("div", { className: "meter", title: "Relevanz (BM25-Wert)" },
+        el("span", { className: "bar" }, fill), h.score.toFixed(2));
+      list.append(el("li", { className: "slip", id: `slip-${n}` },
+        el("div", { className: "slip-head" },
+          el("span", { className: "badge", textContent: String(n) }),
+          el("div", { className: "slip-title" },
+            el("b", { textContent: h.chunk.source }),
+            el("span", { textContent: `Abschnitt ${h.chunk.index + 1}` })),
+          meter),
+        body));
     });
   }
 
-  /* ---------- Start ---------- */
+  /* ---------- Setup ---------- */
+  /** Link to this page's repository when hosted on GitHub Pages, otherwise to the profile. */
+  function sourceUrl() {
+    const host = location.hostname.match(/^([^.]+)\.github\.io$/);
+    const repo = location.pathname.split("/").filter(Boolean)[0];
+    if (host && repo && !repo.includes(".")) return `https://github.com/${host[1]}/${repo}`;
+    return "https://github.com/eizo55";
+  }
+
   function init() {
     const examples = $("#examples");
     for (const q of EXAMPLES) {
@@ -241,31 +335,40 @@
       b.addEventListener("click", () => { $("#q").value = q; ask(q); });
       examples.append(el("li", {}, b));
     }
-
     $("#ask").addEventListener("submit", (e) => { e.preventDefault(); ask($("#q").value); });
+
+    document.querySelectorAll(".origin-value").forEach((n) => { n.textContent = ollamaOrigin(); });
+    $("#source-link").href = sourceUrl();
 
     const savedMode = store.get("rag-mode", "none");
     const radio = document.querySelector(`input[name="mode"][value="${savedMode}"]`);
     if (radio) radio.checked = true;
-    $("#ollama-model").value = store.get("rag-ollama-model", "llama3.2");
-    $("#ollama-url").value = store.get("rag-ollama-url", "http://localhost:11434");
+    $("#ollama-model").value = store.get("rag-ollama-model", DEFAULT_OLLAMA_MODEL);
+    $("#ollama-url").value = store.get("rag-ollama-url", DEFAULT_OLLAMA_URL);
 
     const syncMode = () => {
       const mode = currentMode();
       $("#opts-ollama").hidden = mode !== "ollama";
       $("#opts-claude").hidden = mode !== "claude";
+      $("#opts-openai").hidden = mode !== "openai";
+      $("#mode-chip").textContent = modeLabel();
       store.set("rag-mode", mode);
-      if (mode !== "none") $("#settings").open = true;
     };
     document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener("change", syncMode));
-    $("#ollama-model").addEventListener("change", (e) => store.set("rag-ollama-model", e.target.value));
-    $("#ollama-url").addEventListener("change", (e) => store.set("rag-ollama-url", e.target.value));
+    $("#ollama-model").addEventListener("input", () => { store.set("rag-ollama-model", $("#ollama-model").value); syncMode(); });
+    $("#ollama-url").addEventListener("input", () => store.set("rag-ollama-url", $("#ollama-url").value));
+    $("#claude-model").addEventListener("input", syncMode);
+    $("#openai-model").addEventListener("input", syncMode);
     syncMode();
 
     $("#upload").addEventListener("change", async (e) => { await addFiles(e.target.files); e.target.value = ""; });
     $("#reset-docs").addEventListener("click", loadSamples);
 
     loadSamples();
+
+    // Show a first result right away, so the page is not empty. Only without a model:
+    // a model call should never start before the visitor asks.
+    if (currentMode() === "none") { $("#q").value = EXAMPLES[0]; ask(EXAMPLES[0]); }
   }
 
   init();

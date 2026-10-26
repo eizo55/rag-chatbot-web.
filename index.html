@@ -4,91 +4,120 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Frag die Akte – RAG-Chatbot</title>
-  <meta name="description" content="Ein RAG-Chatbot über Mietrechtstexte: findet passende Abschnitte per BM25 und lässt optional ein Sprachmodell mit Quellenangaben antworten.">
+  <meta name="description" content="RAG-Chatbot im Browser: findet passende Abschnitte in Mietrechtstexten per BM25 und formuliert mit einem Sprachmodell (Ollama, Claude oder OpenAI) eine Antwort mit Quellenangaben.">
+  <meta name="theme-color" content="#0f1b33">
+  <meta property="og:title" content="Frag die Akte – RAG-Chatbot">
+  <meta property="og:description" content="Dokumentensuche mit BM25 und Antworten mit Quellenangaben über ein Sprachmodell.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f1b33'/%3E%3Crect x='6' y='13' width='20' height='7' rx='2' fill='%23ffe066'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="masthead">
-    <h1>Frag die Akte</h1>
-    <p class="lede">Ein RAG-Chatbot über drei kurze Texte zum Mietrecht. Er sucht die passenden Abschnitte und kann daraus eine Antwort mit Quellenangaben formulieren.</p>
+  <header class="hero">
+    <div class="wrap">
+      <h1>Frag die Akte</h1>
+      <p class="lede">Ein RAG-Chatbot über drei kurze Texte zum Mietrecht. Er findet die passenden Abschnitte und kann daraus eine Antwort mit Quellenangaben formulieren.</p>
+
+      <form id="ask" class="searchbar" autocomplete="off">
+        <label for="q" class="sr-only">Frage</label>
+        <input id="q" name="q" type="text" placeholder="Frage stellen, zum Beispiel zur Mietkaution" required>
+        <button type="submit">Fragen</button>
+      </form>
+      <ul class="examples" id="examples" aria-label="Beispielfragen"></ul>
+    </div>
   </header>
 
-  <main>
-    <form id="ask" class="ask" autocomplete="off">
-      <label for="q" class="sr-only">Deine Frage</label>
-      <input id="q" name="q" type="text" placeholder="Zum Beispiel: Wie hoch darf eine Mietkaution sein?" required>
-      <button type="submit">Fragen</button>
-    </form>
-    <ul class="examples" id="examples" aria-label="Beispielfragen"></ul>
+  <main class="wrap">
+    <noscript><p class="note-block">Diese Seite benötigt JavaScript.</p></noscript>
+
+    <div class="modebar">
+      <span class="modebar-label" id="mode-label">Antwort durch</span>
+      <div class="segmented" role="radiogroup" aria-labelledby="mode-label">
+        <label><input type="radio" name="mode" value="none" checked><span>Nur Suche</span></label>
+        <label><input type="radio" name="mode" value="ollama"><span>Ollama (lokal)</span></label>
+        <label><input type="radio" name="mode" value="claude"><span>Claude</span></label>
+        <label><input type="radio" name="mode" value="openai"><span>OpenAI</span></label>
+      </div>
+    </div>
+
+    <div id="opts-ollama" class="mode-opts" hidden>
+      <div class="field-row">
+        <label>Modell <input id="ollama-model" type="text" value="llama3.2" spellcheck="false"></label>
+        <label>Adresse <input id="ollama-url" type="text" value="http://localhost:11434" spellcheck="false"></label>
+      </div>
+      <details class="inline-help">
+        <summary>Einrichtung von Ollama</summary>
+        <ol>
+          <li>Ollama installieren (ollama.com) und das Modell einmalig laden: <code>ollama pull llama3.2</code></li>
+          <li>Ollama beenden und mit Freigabe für diese Seite starten:<br>
+            <code>OLLAMA_ORIGINS="<span class="origin-value">https://eizo55.github.io</span>" ollama serve</code></li>
+          <li>Seite neu laden und eine Frage stellen. Die erste Antwort dauert länger, weil das Modell geladen wird.</li>
+        </ol>
+      </details>
+    </div>
+
+    <div id="opts-claude" class="mode-opts" hidden>
+      <div class="field-row">
+        <label>API-Schlüssel <input id="claude-key" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
+        <label>Modell <input id="claude-model" type="text" value="claude-sonnet-5-5" spellcheck="false"></label>
+      </div>
+      <p class="hint">Der Schlüssel bleibt nur im Arbeitsspeicher dieses Tabs und wird direkt an api.anthropic.com gesendet. Er wird nicht gespeichert.</p>
+    </div>
+
+    <div id="opts-openai" class="mode-opts" hidden>
+      <div class="field-row">
+        <label>API-Schlüssel <input id="openai-key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false"></label>
+        <label>Modell <input id="openai-model" type="text" value="gpt-4o-mini" spellcheck="false"></label>
+      </div>
+      <p class="hint">Der Schlüssel bleibt nur im Arbeitsspeicher dieses Tabs und wird direkt an api.openai.com gesendet. Er wird nicht gespeichert.</p>
+    </div>
 
     <div class="work">
       <section class="answer-panel" aria-labelledby="h-answer">
-        <h2 id="h-answer">Antwort</h2>
+        <div class="panel-head">
+          <h2 id="h-answer">Antwort</h2>
+          <span class="chip" id="mode-chip">Nur Suche</span>
+        </div>
         <div id="answer" class="answer" aria-live="polite">
-          <p class="empty">Stelle eine Frage oder wähle ein Beispiel. Die gefundenen Abschnitte erscheinen bei „Gefundene Abschnitte“, die Wörter deiner Frage sind darin markiert.</p>
+          <p class="empty">Frage stellen oder ein Beispiel wählen. Die Treffer erscheinen unter „Gefundene Abschnitte“, die Wörter der Frage sind darin markiert.</p>
         </div>
       </section>
 
       <section class="sources-panel" aria-labelledby="h-sources">
-        <h2 id="h-sources">Gefundene Abschnitte</h2>
+        <div class="panel-head">
+          <h2 id="h-sources">Gefundene Abschnitte</h2>
+          <span class="chip" id="hit-count" hidden></span>
+        </div>
         <ol id="sources" class="sources"></ol>
       </section>
     </div>
 
-    <details class="settings" id="settings">
-      <summary>Antwortmodus</summary>
-      <div class="settings-body">
-        <fieldset>
-          <legend class="sr-only">Wer formuliert die Antwort?</legend>
-          <label class="radio"><input type="radio" name="mode" value="none" checked> Nur Suche <span>funktioniert überall, ohne Sprachmodell</span></label>
-          <label class="radio"><input type="radio" name="mode" value="ollama"> Ollama (lokal) <span>kostenlos, läuft auf deinem Rechner</span></label>
-          <label class="radio"><input type="radio" name="mode" value="claude"> Claude <span>mit deinem eigenen API-Schlüssel</span></label>
-        </fieldset>
-
-        <div id="opts-ollama" hidden>
-          <div class="field-row">
-            <label>Modell <input id="ollama-model" type="text" value="llama3.2" spellcheck="false"></label>
-            <label>Adresse <input id="ollama-url" type="text" value="http://localhost:11434" spellcheck="false"></label>
-          </div>
-          <p class="hint">Ollama muss laufen und diese Seite zulassen. Auf dem Mac: <code>launchctl setenv OLLAMA_ORIGINS "https://DEIN-NAME.github.io"</code> ausführen und die Ollama-App neu starten. Zum lokalen Testen eignet sich <code>"*"</code>. Das Modell lädst du einmal mit <code>ollama pull llama3.2</code>.</p>
-        </div>
-
-        <div id="opts-claude" hidden>
-          <div class="field-row">
-            <label>API-Schlüssel <input id="claude-key" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
-            <label>Modell <input id="claude-model" type="text" value="claude-sonnet-5-5" spellcheck="false"></label>
-          </div>
-          <p class="hint">Der Schlüssel bleibt nur im Arbeitsspeicher dieses Tabs und geht direkt an api.anthropic.com. Er wird nirgends gespeichert. Trotzdem: Nutze nur einen Schlüssel mit niedrigem Limit und gib ihn nicht auf fremden Rechnern ein.</p>
-        </div>
-      </div>
-    </details>
-
     <details class="docs" id="docs-panel">
       <summary>Dokumente <span id="docs-count"></span></summary>
-      <div class="settings-body">
+      <div class="docs-body">
         <ul id="docs-list" class="docs-list"></ul>
         <div class="docs-actions">
-          <label class="file-btn">Eigene Dateien hinzufügen
+          <label class="btn-outline">Eigene Dateien hinzufügen
             <input id="upload" type="file" accept=".txt,.md,text/plain,text/markdown" multiple>
           </label>
-          <button type="button" id="reset-docs" class="quiet">Beispiele zurücksetzen</button>
+          <button type="button" id="reset-docs" class="btn-outline">Beispiele zurücksetzen</button>
         </div>
-        <p class="hint">Es werden .txt- und .md-Dateien gelesen. Sie bleiben in deinem Browser und werden nirgends hochgeladen. Nur im Modus Ollama oder Claude gehen die gefundenen Abschnitte an das gewählte Modell.</p>
+        <p class="hint">Gelesen werden .txt- und .md-Dateien. Sie bleiben im Browser und werden nicht hochgeladen. Mit einem Sprachmodell gehen Frage und gefundene Abschnitte an das gewählte Modell, bei Claude und OpenAI an deren Server.</p>
       </div>
     </details>
   </main>
 
-  <footer>
+  <footer class="wrap">
     <h2>So funktioniert es</h2>
     <ol class="steps">
-      <li><strong>Teilen.</strong> Die Texte werden in überlappende Abschnitte von etwa 800 Zeichen zerlegt.</li>
-      <li><strong>Finden.</strong> BM25 bewertet jeden Abschnitt nach den Wörtern der Frage. Zusammengesetzte Wörter zählen mit: „Kaution“ findet „Mietkaution“.</li>
-      <li><strong>Antworten.</strong> Die besten vier Abschnitte gehen als nummerierte Quellen an ein Sprachmodell, das nur daraus antworten soll.</li>
+      <li><strong>Teilen</strong><span>Die Texte werden in überlappende Abschnitte von etwa 800 Zeichen zerlegt.</span></li>
+      <li><strong>Finden</strong><span>BM25 bewertet jeden Abschnitt nach den Wörtern der Frage. Zusammengesetzte Wörter zählen mit: „Kaution“ findet „Mietkaution“.</span></li>
+      <li><strong>Antworten</strong><span>Die besten vier Abschnitte gehen als nummerierte Quellen an ein Sprachmodell, das nur daraus antworten soll.</span></li>
     </ol>
-    <p class="fine">Die Beispieltexte sind kurze Demo-Inhalte und keine Rechtsberatung. Diese Seite ist die Browser-Version eines Java-Projekts: <a href="https://github.com/eizo55/rag-chatbot">Quellcode auf GitHub</a>.</p>
+    <p class="fine">Die Beispieltexte sind kurze Demo-Inhalte und keine Rechtsberatung. Quellcode auf GitHub: <a id="source-link" href="https://github.com/eizo55">Browser-Version</a> und <a href="https://github.com/eizo55/rag-chatbot-java">Java-Version</a>.</p>
   </footer>
 
   <script src="docs.js"></script>

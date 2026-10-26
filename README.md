@@ -1,41 +1,66 @@
 # Frag die Akte – RAG-Chatbot im Browser
 
-Browser-Version meines Java-RAG-Chatbots. Die Seite zerlegt Texte in Abschnitte, bewertet sie mit BM25 (inklusive deutscher Komposita: „Kaution“ findet „Mietkaution“) und zeigt die Treffer mit markierten Suchwörtern. Optional formuliert ein Sprachmodell eine Antwort mit Quellenangaben.
+Ein Retrieval-Augmented-Generation-Chatbot über kurze Texte zum Mietrecht. Die Seite zerlegt Dokumente in Abschnitte, findet zu einer Frage die passendsten per BM25 und zeigt sie mit markierten Suchwörtern. Ein Sprachmodell kann daraus eine Antwort mit nummerierten Quellenangaben formulieren.
 
-- **Nur Suche:** läuft komplett im Browser, ohne Server und ohne Kosten.
-- **Ollama (lokal):** kostenlose Antworten von einem Modell auf dem eigenen Rechner.
-- **Claude:** Antworten über die Anthropic API mit dem eigenen Schlüssel des Besuchers. Der Schlüssel wird nicht gespeichert.
+Die Dokumentensuche läuft vollständig im Browser, ohne Server. Für Antworten stehen drei Modelle zur Wahl: Ollama (lokal und kostenlos), Claude oder OpenAI (jeweils mit eigenem API-Schlüssel).
 
-Eigene `.txt`- und `.md`-Dateien lassen sich unter „Dokumente“ hinzufügen. Sie bleiben im Browser.
+Es gibt auch eine Java-Version des Projekts: [rag-chatbot-java](https://github.com/eizo55/rag-chatbot-java).
 
-## Dateien
+## Funktionen
+
+- **Dokumentensuche im Browser:** Chunking mit Überlappung, deutsche Normalisierung (Umlaute, Stoppwörter) und Teilwörter zusammengesetzter Wörter, sodass „Kaution“ auch „Mietkaution“ findet.
+- **Antworten mit Quellen:** Die besten vier Abschnitte gehen als nummerierte Quellen an das Modell. Zitate wie `[1]` in der Antwort verlinken auf den jeweiligen Abschnitt.
+- **Austauschbares Modell:** Ollama, Claude (Anthropic Messages API) oder OpenAI (Responses API). API-Schlüssel bleiben im Arbeitsspeicher des Tabs und werden nicht gespeichert.
+- **Eigene Dokumente:** `.txt`- und `.md`-Dateien lassen sich im Browser hinzufügen und werden nicht hochgeladen.
+- **Verständliche Fehlermeldungen:** zum Beispiel bei nicht erreichbarem Ollama, unbekanntem Modell oder ungültigem Schlüssel.
+- Bedienung per Tastatur mit sichtbarem Fokus, responsives Layout, helles und dunkles Design.
+
+## Technik
+
+- Reines HTML, CSS und JavaScript ohne Build-Schritt und ohne Abhängigkeiten
+- Eigene Implementierung von Okapi BM25 mit invertiertem Index im Speicher
+- Anbindung von Ollama (`/api/chat`), der Anthropic Messages API und der OpenAI Responses API über `fetch`
+- Der Prompt weist das Modell an, nur aus den Quellen zu antworten und deren Inhalt als Daten zu behandeln, nicht als Anweisungen
+- Unit-Tests mit dem eingebauten Node-Testwerkzeug (`assert`)
+
+Die Suchlogik ist an die Java-Version des Projekts (Maven, JUnit) angelehnt.
+
+## Aufbau
 
 | Datei | Inhalt |
 | --- | --- |
 | `index.html`, `style.css` | Seite und Gestaltung |
-| `rag.js` | Tokenizer, Chunker, BM25, Hervorhebung, Prompt (Port der Java-Klassen) |
-| `app.js` | Oberfläche, Anbindung von Ollama und Claude |
+| `rag.js` | Tokenizer, Chunker, BM25, Hervorhebung, Prompt |
+| `app.js` | Oberfläche und Anbindung der Sprachmodelle |
 | `docs.js` | Drei Beispieltexte (Demo-Inhalte, keine Rechtsberatung) |
-| `tests.js` | Tests für `rag.js`: `node tests.js` |
+| `tests.js` | Tests für `rag.js` |
 
-## Auf GitHub Pages veröffentlichen
+## Starten
 
-1. Auf github.com ein neues Repository anlegen, z. B. `rag-chatbot-web` (public).
-2. Alle Dateien dieses Ordners hochladen („Add file → Upload files“) und committen.
-3. Im Repository: **Settings → Pages → Build and deployment**, Source **Deploy from a branch**, Branch **main**, Ordner **/ (root)**, speichern.
-4. Nach ein bis zwei Minuten läuft die Seite unter `https://DEIN-NAME.github.io/rag-chatbot-web/`.
+Für die Suche genügt es, `index.html` im Browser zu öffnen.
 
-## Ollama mit der veröffentlichten Seite nutzen
-
-Der Browser darf Ollama nur ansprechen, wenn Ollama die Seite zulässt. Auf dem Mac:
+**Ollama (lokal):**
 
 ```bash
-launchctl setenv OLLAMA_ORIGINS "https://DEIN-NAME.github.io"
+ollama pull llama3.2                      # Modell einmalig laden
+OLLAMA_ORIGINS="https://eizo55.github.io" ollama serve
 ```
 
-Danach die Ollama-App beenden und neu starten. Das Modell einmalig laden: `ollama pull llama3.2`. Safari blockiert Anfragen von https-Seiten an `http://localhost` teils; Chrome und Firefox funktionieren.
+Der Browser darf Ollama nur ansprechen, wenn die Seite freigegeben ist. Die Herkunft in `OLLAMA_ORIGINS` muss zur Adresse der Seite passen. Wird `index.html` direkt aus dem Dateisystem geöffnet, steht dort `"*"`. Die Seite zeigt unter „Ollama“ die passende Zeile an.
+
+**Claude oder OpenAI:** Modus wählen, API-Schlüssel eintragen, Frage stellen. Die Anfragen gehen direkt vom Browser an den jeweiligen Anbieter.
+
+## Tests
+
+```bash
+node tests.js
+```
+
+Geprüft werden Tokenizer, Chunking, BM25-Ranking, Hervorhebung und Prompt-Aufbau.
 
 ## Grenzen
 
-- Es ist ein Frage-Antwort-Fenster ohne Gesprächsverlauf. Die Java-Version merkt sich die letzten Nachrichten.
-- GitHub Pages hostet nur statische Dateien. Die Java-Anwendung selbst läuft dort nicht.
+- Frage und Antwort ohne Gesprächsverlauf
+- Direkte Browser-Aufrufe der Anbieter-APIs funktionieren nur, solange der Anbieter sie zulässt (CORS). Für den produktiven Einsatz gehören API-Schlüssel auf einen Server.
+- Die Beispieltexte sind kurze Demo-Inhalte und keine Rechtsberatung
+- Kleine lokale Modelle antworten auf Deutsch weniger zuverlässig als große und halten die Zitierregeln nicht immer ein; die angezeigten Quellen sind davon unabhängig

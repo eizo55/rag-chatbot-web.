@@ -81,6 +81,11 @@ test("highlight marks matching words, including compounds", () => {
   assert.equal(parts.map((p) => p.text).join(""), "Die Mietkaution beträgt drei Monatsmieten.");
 });
 
+test("question words are not highlighted", () => {
+  const parts = Rag.highlightParts("Der Mieter darf die Kaution zahlen.", "Wie hoch darf die Kaution sein?");
+  assert.deepEqual(parts.filter((p) => p.hit).map((p) => p.text), ["Kaution"]);
+});
+
 test("prompt has numbered sources and ends with the question", () => {
   const hits = new Rag.Bm25(small).retrieve("Kaution", 2);
   const p = Rag.buildUserPrompt("Kaution?", hits);

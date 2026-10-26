@@ -1,6 +1,7 @@
 /*
- * Retrieval core, a JavaScript port of the Java classes Tokenizer, Chunker and Bm25Retriever.
- * Works in the browser (window.Rag) and in Node (module.exports) so it can be tested.
+ * Retrieval core: tokenizer, chunker, BM25 ranking and passage highlighting.
+ * Modelled on the Java version of this project (Tokenizer, Chunker, Bm25Retriever).
+ * Works in the browser (window.Rag) and in Node (module.exports), so it can be tested.
  */
 (function (root) {
   "use strict";
@@ -10,6 +11,9 @@
     "und", "oder", "ist", "sind", "war", "wird", "werden", "mit", "von", "zu", "im", "in",
     "am", "an", "auf", "fur", "ueber", "nicht", "auch", "es", "sie", "er", "wie", "was",
     "the", "a", "and", "or", "is", "are", "of", "to", "on", "for", "with", "what", "how",
+    // question words and common verbs/prepositions that carry no topic
+    "darf", "muss", "kann", "soll", "wann", "wer", "wo", "warum", "welche", "hat", "haben",
+    "beim", "vom", "zum", "zur", "bei", "nach", "aus", "bis", "um", "wenn", "dass", "als", "sich", "sein",
   ]);
 
   const MIN_COMPOUND_LENGTH = 8;

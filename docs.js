@@ -1,4 +1,4 @@
-// Beispieltexte (Demo-Inhalte, keine Rechtsberatung)
+// Sample documents (demo content, not legal advice)
 window.SAMPLE_DOCS = [
   {
     "name": "betriebskostenabrechnung.md",
